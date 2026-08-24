@@ -73,7 +73,7 @@ st.markdown("""
     </style>
 """, unsafe_allow_html=True)
 
-st.title("☀️ Cotizador Solar Instantáneo")
+st.title("☀️ Cotizador Sistema SOLARTECH")
 st.caption("Calcula el dimensionamiento y costo de tu sistema solar compacto en gabinete todo en uno.")
 
 col1, col2 = st.columns([1, 1], gap="large")
