@@ -130,57 +130,69 @@ with col1:
 
 with col2:
     if btn_calcular:
-        payload = {
-            "monthly_consumption_kwh": promedio_kwh,
-            "system_type": tipo_sistema,
-            "city": ciudad,
-            "energy_rate_cop": tarifa_kwh,
-            "backup_percentage": 0.5
-        }
-        req = QuoteRequest(
-            monthly_consumption_kwh=promedio_kwh,
-            system_type=tipo_sistema,
-            city=ciudad,
-            energy_rate_cop=tarifa_kwh,
-            backup_percentage=0.5
-        )
-        data = calculate_solar_quote(req).model_dump()
-
         try:
-            res = requests.post(API_URL, json=payload, timeout=5)
-            if res.status_code == 200:
-                data = res.json()
-                
-                st.subheader("📊 Resultado del Dimensionamiento")
-                
-                # Métricas clave
-                m1, m2, m3 = st.columns(3)
-                m1.metric("Potencia Solar", f"{data['recommended_kwp']} kWp")
-                m2.metric("Paneles (550W)", f"{data['solar_panels_count']} Unidades")
-                m3.metric("Ahorro Estimado", f"${data['estimated_monthly_savings_cop']:,.0f}/mes")
+            req = QuoteRequest(
+                monthly_consumption_kwh=promedio_kwh,
+                system_type=tipo_sistema,
+                city=ciudad,
+                energy_rate_cop=tarifa_kwh,
+                backup_percentage=0.5
+            )
+            # Cálculo directo usando el motor de Python (sin depender de FastAPI en local)
+            data = calculate_solar_quote(req).model_dump()
+            
+            st.subheader("📊 Resultado del Dimensionamiento")
+            
+            # Métricas clave
+            m1, m2, m3 = st.columns(3)
+            m1.metric("Potencia Solar", f"{data['recommended_kwp']} kWp")
+            m2.metric("Paneles (550W)", f"{data['solar_panels_count']} Unidades")
+            m3.metric("Ahorro Estimado", f"${data['estimated_monthly_savings_cop']:,.0f}/mes")
 
-                st.divider()
+            st.divider()
 
-                # Gabinete Recomendado
-                st.markdown(f"### 📦 Gabinete Recomendado: **{data['cabinet']['model_name']}**")
-                st.write(f"- **Inversor Integrado:** {data['cabinet']['inverter_power_kw']} kW")
-                st.write(f"- **Almacenamiento Litio:** {data['cabinet']['battery_capacity_kwh']} kWh")
-                st.write(f"- **Dimensiones:** {data['cabinet']['dimensions_cm']}")
+            # Gabinete Recomendado
+            st.markdown(f"### 📦 Gabinete Recomendado: **{data['cabinet']['model_name']}**")
+            st.write(f"- **Inversor Integrado:** {data['cabinet']['inverter_power_kw']} kW")
+            st.write(f"- **Almacenamiento Litio:** {data['cabinet']['battery_capacity_kwh']} kWh")
+            st.write(f"- **Dimensiones:** {data['cabinet']['dimensions_cm']}")
 
-                st.divider()
+            st.divider()
 
-                # Costos y ROI
-                st.markdown("### 💰 Inversión Estimada (Llave en Mano)")
-                st.success(f"**Rango de Inversión:** ${data['total_cost_min_cop']:,.0f} - ${data['total_cost_max_cop']:,.0f} COP")
-                st.info(f"⏳ **Retorno de Inversión (ROI) Estimado:** ~{data['estimated_roi_years']} años")
+            # Costos y ROI
+            st.markdown("### 💰 Inversión Estimada (Llave en Mano)")
+            st.success(f"**Rango de Inversión:** ${data['total_cost_min_cop']:,.0f} - ${data['total_cost_max_cop']:,.0f} COP")
+            st.info(f"⏳ **Retorno de Inversión (ROI) Estimado:** ~{data['estimated_roi_years']} años")
 
-            else:
-                st.error("Error al procesar la cotización en el servidor.")
+            st.divider()
+
+            # Botón de Contacto por WhatsApp con datos prellenados
+            # Cambia el número 573001234567 por tu número real de WhatsApp
+            numero_whatsapp = "573001234567"  
+            
+            mensaje_wa = (
+                f"¡Hola! Acabo de cotizar en la plataforma solar:\n"
+                f"📍 Ciudad: {ciudad}\n"
+                f"⚡ Consumo promedio: {promedio_kwh:.1f} kWh/mes\n"
+                f"📦 Sistema: {data['cabinet']['model_name']} ({data['recommended_kwp']} kWp - {data['solar_panels_count']} paneles)\n"
+                f"💰 Rango estimado: ${data['total_cost_min_cop']:,.0f} - ${data['total_cost_max_cop']:,.0f} COP\n\n"
+                f"Quiero agendar una visita técnica o recibir más asesoría."
+            )
+            
+            import urllib.parse
+            url_whatsapp = f"https://wa.me/{numero_whatsapp}?text={urllib.parse.quote(mensaje_wa)}"
+
+            st.link_button(
+                "📲 Contactar por WhatsApp para Agendar Visita",
+                url_whatsapp,
+                type="primary",
+                use_container_width=True
+            )
+
         except Exception as e:
-            st.error(f"No se pudo conectar con el backend de FastAPI. Asegúrate de que uvicorn esté corriendo en el puerto 8000. Detalles: {e}")
+            st.error(f"Error al procesar la cotización: {e}")
     else:
         st.write("👈 Ingresa los datos de consumo a la izquierda y presiona **Calcular Mi Sistema** para generar la cotización al instante.")
-
 # --- SECCIÓN INFORMATIVA INFERIOR ---
 st.divider()
 st.subheader("💡 ¿Qué tipo de sistema solar necesitas?")
