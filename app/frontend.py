@@ -1,50 +1,47 @@
 import sys
 import os
 
-# Asegurar que Python encuentre el módulo 'app' en Streamlit Cloud
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
 import streamlit as st
 import urllib.parse
 from app.core.calculator import calculate_solar_quote
+from app.core.pdf_generator import generate_quote_pdf
 from app.schemas.quote import QuoteRequest
 
+# Configuración de Supabase (Usa st.secrets en Streamlit Cloud o variables de entorno)
+SUPABASE_URL = st.secrets.get("SUPABASE_URL", os.getenv("SUPABASE_URL", ""))
+SUPABASE_KEY = st.secrets.get("SUPABASE_KEY", os.getenv("SUPABASE_KEY", ""))
+
+supabase_client = None
+if SUPABASE_URL and SUPABASE_KEY:
+    try:
+        from supabase import create_client
+        supabase_client = create_client(SUPABASE_URL, SUPABASE_KEY)
+    except Exception:
+        supabase_client = None
 
 st.set_page_config(
-    page_title="Cotizador Solar All-in-One",
+    page_title="Cotizador Sistema SOLARTECH",
     page_icon="☀️",
     layout="wide"
 )
 
-# Estilos CSS personalizados: Fondo moderno, tarjetas translúcidas y tipografía limpia
 st.markdown("""
     <style>
-        /* Fondo general */
         .stApp {
             background: linear-gradient(135deg, #0f172a 0%, #1e293b 50%, #0f172a 100%);
             color: #ffffff !important;
         }
-
-        /* Forzar texto blanco en títulos, subtítulos, etiquetas de inputs y radio buttons */
         h1, h2, h3, h4, h5, h6, p, span, label, .stMarkdown {
             color: #ffffff !important;
         }
-
-        /* Ajuste específico para etiquetas de campos (inputs, selects, radio) */
         div[data-testid="stWidgetLabel"] label,
-        div[data-testid="stWidgetLabel"] p {
-            color: #ffffff !important;
-            font-size: 1rem !important;
-            font-weight: 500 !important;
-        }
-
-        /* Texto de las opciones de los radio buttons */
+        div[data-testid="stWidgetLabel"] p,
         div[role="radiogroup"] label div p {
             color: #ffffff !important;
             font-weight: 500 !important;
         }
-
-        /* Tarjetas inferiores */
         .solution-card {
             background: rgba(255, 255, 255, 0.05);
             border: 1px solid rgba(255, 255, 255, 0.15);
@@ -52,18 +49,12 @@ st.markdown("""
             padding: 16px;
             text-align: center;
             height: 100%;
-            transition: transform 0.2s ease;
-        }
-        .solution-card:hover {
-            transform: translateY(-4px);
-            border-color: #38bdf8;
         }
         .solution-title {
             font-size: 1.1rem;
             font-weight: 700;
             color: #38bdf8 !important;
             margin-top: 10px;
-            margin-bottom: 6px;
         }
         .solution-desc {
             font-size: 0.85rem;
@@ -78,12 +69,9 @@ st.markdown("""
             border-radius: 6px;
             background-color: #0284c7;
             color: #ffffff !important;
-            margin-bottom: 8px;
         }
     </style>
 """, unsafe_allow_html=True)
-
-API_URL = "http://127.0.0.1:8000/api/v1/quote"
 
 st.title("☀️ Cotizador Solar Instantáneo")
 st.caption("Calcula el dimensionamiento y costo de tu sistema solar compacto en gabinete todo en uno.")
@@ -91,10 +79,14 @@ st.caption("Calcula el dimensionamiento y costo de tu sistema solar compacto en 
 col1, col2 = st.columns([1, 1], gap="large")
 
 with col1:
-    st.subheader("1. Datos de Consumo")
-    
+    st.subheader("1. Tus Datos de Contacto")
+    nombre = st.text_input("Nombre Completo *", placeholder="Ej. Juan Pérez")
+    telefono = st.text_input("Número de Teléfono / WhatsApp *", placeholder="Ej. 3001234567")
+    email = st.text_input("Correo Electrónico (Opcional)", placeholder="juan@ejemplo.com")
+
+    st.subheader("2. Datos de Consumo")
     input_mode = st.radio(
-        "¿Cómo prefieres ingresar tus datos?",
+        "¿Cómo prefieres ingresar tus consumos?",
         ["Promedio últimos 3 consumos (kWh)", "Valor promedio de la factura ($ COP)"],
         horizontal=True
     )
@@ -111,12 +103,12 @@ with col1:
             mes3 = st.number_input("Mes 3 (kWh)", min_value=0.0, value=360.0)
         promedio_kwh = (mes1 + mes2 + mes3) / 3.0
     else:
-        valor_factura = st.number_input("Valor promedio mensual de la factura ($ COP)", min_value=50000.0, value=320000.0, step=10000.0)
+        valor_factura = st.number_input("Valor promedio factura ($ COP)", min_value=50000.0, value=320000.0, step=10000.0)
         promedio_kwh = valor_factura / tarifa_kwh
 
     st.info(f"⚡ Consumo promedio calculado: **{promedio_kwh:.1f} kWh/mes**")
 
-    st.subheader("2. Configuración del Sistema")
+    st.subheader("3. Configuración del Sistema")
     ciudad = st.selectbox(
         "Ciudad / Región",
         ["Bogota", "Medellin", "Cali", "Barranquilla", "Bucaramanga", "Cartagena"]
@@ -132,78 +124,110 @@ with col1:
         format_func=lambda x: x[1]
     )[0]
 
-    btn_calcular = st.button("🚀 Calcular Mi Sistema", type="primary", use_container_width=True)
+    btn_calcular = st.button("🚀 Calcular y Generar Propuesta", type="primary", use_container_width=True)
 
 with col2:
     if btn_calcular:
-        try:
-            req = QuoteRequest(
-                monthly_consumption_kwh=promedio_kwh,
-                system_type=tipo_sistema,
-                city=ciudad,
-                energy_rate_cop=tarifa_kwh,
-                backup_percentage=0.5
-            )
-            # Cálculo directo usando el motor de Python (sin depender de FastAPI en local)
-            data = calculate_solar_quote(req).model_dump()
-            
-            st.subheader("📊 Resultado del Dimensionamiento")
-            
-            # Métricas clave
-            m1, m2, m3 = st.columns(3)
-            m1.metric("Potencia Solar", f"{data['recommended_kwp']} kWp")
-            m2.metric("Paneles (550W)", f"{data['solar_panels_count']} Unidades")
-            m3.metric("Ahorro Estimado", f"${data['estimated_monthly_savings_cop']:,.0f}/mes")
+        if not nombre.strip() or not telefono.strip():
+            st.warning("⚠️ Por favor ingresa tu **Nombre** y **Teléfono** para generar la cotización.")
+        else:
+            try:
+                req = QuoteRequest(
+                    monthly_consumption_kwh=promedio_kwh,
+                    system_type=tipo_sistema,
+                    city=ciudad,
+                    energy_rate_cop=tarifa_kwh,
+                    backup_percentage=0.5
+                )
+                data = calculate_solar_quote(req).model_dump()
 
-            st.divider()
+                # Guardar Lead en Supabase si está configurado
+                if supabase_client:
+                    try:
+                        lead_record = {
+                            "full_name": nombre.strip(),
+                            "phone": telefono.strip(),
+                            "email": email.strip() if email else None,
+                            "city": ciudad,
+                            "system_type": tipo_sistema,
+                            "monthly_kwh": round(promedio_kwh, 2),
+                            "recommended_kwp": data['recommended_kwp'],
+                            "panels_count": data['solar_panels_count'],
+                            "cabinet_model": data['cabinet']['model_name'],
+                            "min_cost": data['total_cost_min_cop'],
+                            "max_cost": data['total_cost_max_cop']
+                        }
+                        supabase_client.table("solar_leads").insert(lead_record).execute()
+                    except Exception as db_err:
+                        st.caption(f"(Nota técnica: lead no guardado en base de datos: {db_err})")
 
-            # Gabinete Recomendado
-            st.markdown(f"### 📦 Gabinete Recomendado: **{data['cabinet']['model_name']}**")
-            st.write(f"- **Inversor Integrado:** {data['cabinet']['inverter_power_kw']} kW")
-            st.write(f"- **Almacenamiento Litio:** {data['cabinet']['battery_capacity_kwh']} kWh")
-            st.write(f"- **Dimensiones:** {data['cabinet']['dimensions_cm']}")
+                st.subheader(f"📊 Propuesta para {nombre}")
+                
+                m1, m2, m3 = st.columns(3)
+                m1.metric("Potencia Solar", f"{data['recommended_kwp']} kWp")
+                m2.metric("Paneles (550W)", f"{data['solar_panels_count']} Unidades")
+                m3.metric("Ahorro Estimado", f"${data['estimated_monthly_savings_cop']:,.0f}/mes")
 
-            st.divider()
+                st.divider()
 
-            # Costos y ROI
-            st.markdown("### 💰 Inversión Estimada (Llave en Mano)")
-            st.success(f"**Rango de Inversión:** ${data['total_cost_min_cop']:,.0f} - ${data['total_cost_max_cop']:,.0f} COP")
-            st.info(f"⏳ **Retorno de Inversión (ROI) Estimado:** ~{data['estimated_roi_years']} años")
+                st.markdown(f"### 📦 Gabinete: **{data['cabinet']['model_name']}**")
+                st.write(f"- **Inversor Integrado:** {data['cabinet']['inverter_power_kw']} kW")
+                st.write(f"- **Almacenamiento Litio:** {data['cabinet']['battery_capacity_kwh']} kWh")
+                st.write(f"- **Dimensiones:** {data['cabinet']['dimensions_cm']}")
 
-            st.divider()
+                st.divider()
 
-            # Botón de Contacto por WhatsApp con datos prellenados
-            # Cambia el número 573001234567 por tu número real de WhatsApp
-            numero_whatsapp = "573001234567"  
-            
-            mensaje_wa = (
-                f"¡Hola! Acabo de cotizar en la plataforma solar:\n"
-                f"📍 Ciudad: {ciudad}\n"
-                f"⚡ Consumo promedio: {promedio_kwh:.1f} kWh/mes\n"
-                f"📦 Sistema: {data['cabinet']['model_name']} ({data['recommended_kwp']} kWp - {data['solar_panels_count']} paneles)\n"
-                f"💰 Rango estimado: ${data['total_cost_min_cop']:,.0f} - ${data['total_cost_max_cop']:,.0f} COP\n\n"
-                f"Quiero agendar una visita técnica o recibir más asesoría."
-            )
-            
-            import urllib.parse
-            url_whatsapp = f"https://wa.me/{numero_whatsapp}?text={urllib.parse.quote(mensaje_wa)}"
+                st.markdown("### 💰 Inversión Estimada (Llave en Mano)")
+                st.success(f"**Rango de Inversión:** ${data['total_cost_min_cop']:,.0f} - ${data['total_cost_max_cop']:,.0f} COP")
+                st.info(f"⏳ **Retorno de Inversión (ROI):** ~{data['estimated_roi_years']} años")
 
-            st.link_button(
-                "📲 Contactar por WhatsApp para Agendar Visita",
-                url_whatsapp,
-                type="primary",
-                use_container_width=True
-            )
+                st.divider()
 
-        except Exception as e:
-            st.error(f"Error al procesar la cotización: {e}")
+                # 1. Botón de Descarga de PDF
+                client_info = {
+                    "full_name": nombre,
+                    "phone": telefono,
+                    "email": email,
+                    "city": ciudad,
+                    "monthly_kwh": promedio_kwh
+                }
+                pdf_bytes = generate_quote_pdf(client_info, data)
+
+                st.download_button(
+                    label="📄 Descargar Propuesta en PDF",
+                    data=pdf_bytes,
+                    file_name=f"Propuesta_Solar_{nombre.replace(' ', '_')}.pdf",
+                    mime="application/pdf",
+                    use_container_width=True
+                )
+
+                # 2. Botón WhatsApp
+                numero_whatsapp = "573001234567" # Reemplaza por tu número
+                mensaje_wa = (
+                    f"¡Hola! Mi nombre es {nombre}. Acabo de cotizar un sistema solar:\n"
+                    f"📍 Ciudad: {ciudad}\n"
+                    f"⚡ Consumo: {promedio_kwh:.1f} kWh/mes\n"
+                    f"📦 Gabinete: {data['cabinet']['model_name']} ({data['recommended_kwp']} kWp)\n"
+                    f"💰 Inversión estimada: ${data['total_cost_min_cop']:,.0f} - ${data['total_cost_max_cop']:,.0f} COP\n\n"
+                    f"Quiero agendar una visita técnica."
+                )
+                url_whatsapp = f"https://wa.me/{numero_whatsapp}?text={urllib.parse.quote(mensaje_wa)}"
+
+                st.link_button(
+                    "📲 Enviar Cotización por WhatsApp",
+                    url_whatsapp,
+                    type="primary",
+                    use_container_width=True
+                )
+
+            except Exception as e:
+                st.error(f"Error al procesar la cotización: {e}")
     else:
-        st.write("👈 Ingresa los datos de consumo a la izquierda y presiona **Calcular Mi Sistema** para generar la cotización al instante.")
-# --- SECCIÓN INFORMATIVA INFERIOR ---
+        st.write("👈 Completa tus datos a la izquierda y presiona **Calcular y Generar Propuesta**.")
+
+# Sección Informativa Inferior
 st.divider()
 st.subheader("💡 ¿Qué tipo de sistema solar necesitas?")
-st.caption("Conoce las diferencias de forma simple para elegir la mejor opción según tu caso.")
-
 card_col1, card_col2, card_col3 = st.columns(3, gap="medium")
 
 with card_col1:
@@ -211,9 +235,9 @@ with card_col1:
         <div class="solution-card">
             <span class="badge">Más Popular</span>
             <div style="font-size: 2.5rem;">🔋⚡</div>
-            <div class="solution-title">Sistema Híbrido (Todo en Uno)</div>
+            <div class="solution-title">Sistema Híbrido</div>
             <div class="solution-desc">
-                Genera energía solar de día, reduce tu factura al mínimo y <b>almacena energía en baterías de litio</b> para mantener tu casa o negocio encendido automáticamente si se va la luz.
+                Reduce tu factura y almacena energía en baterías de litio para respaldo automático ante cortes de luz.
             </div>
         </div>
     """, unsafe_allow_html=True)
@@ -221,11 +245,11 @@ with card_col1:
 with card_col2:
     st.markdown("""
         <div class="solution-card">
-            <span class="badge">Mayor Ahorro / Menor Inversión</span>
+            <span class="badge">Mayor Ahorro</span>
             <div style="font-size: 2.5rem;">☀️📉</div>
             <div class="solution-title">Conectado a Red (On-Grid)</div>
             <div class="solution-desc">
-                Ideal si tu objetivo es <b>reducir hasta un 90% el valor de la factura</b> y en tu zona no hay cortes frecuentes. Trabaja en sincronía directa con el operador de red sin requerir baterías.
+                Reduce hasta un 90% el valor de la factura trabajando en sincronía directa con la red.
             </div>
         </div>
     """, unsafe_allow_html=True)
@@ -235,9 +259,9 @@ with card_col3:
         <div class="solution-card">
             <span class="badge">100% Autónomo</span>
             <div style="font-size: 2.5rem;">🏡🔋</div>
-            <div class="solution-title">Sistema Aislado (Off-Grid)</div>
+            <div class="solution-title">Aislado (Off-Grid)</div>
             <div class="solution-desc">
-                Diseñado para <b>fincas, casas de campo o zonas rurales</b> donde no llega la red eléctrica. Toda la energía consumida proviene exclusivamente de los paneles solares y el banco de baterías.
+                Para fincas o zonas rurales sin red. 100% de la energía proviene de paneles y baterías.
             </div>
         </div>
     """, unsafe_allow_html=True)
