@@ -1,5 +1,11 @@
+import sys
+import os
+
+# Asegurar que Python encuentre el módulo 'app' en Streamlit Cloud
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
+
 import streamlit as st
-import requests
+import urllib.parse
 from app.core.calculator import calculate_solar_quote
 from app.schemas.quote import QuoteRequest
 
