@@ -1,22 +1,24 @@
 import sys
 import os
+import urllib.parse
+from datetime import datetime
 
+# Asegurar path
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
 import streamlit as st
-import urllib.parse
+from fpdf import FPDF
 from app.core.calculator import calculate_solar_quote
-from app.core.pdf_generator import generate_quote_pdf
 from app.schemas.quote import QuoteRequest
 
-# Configuración inicial de la página
+# Configuración inicial
 st.set_page_config(
-    page_title="Cotizador Solar All-in-One",
+    page_title="Cotizador SOLARTECH",
     page_icon="☀️",
     layout="wide"
 )
 
-# Configuración de Supabase (Usa st.secrets en Streamlit Cloud o variables de entorno)
+# Configuración de Supabase
 SUPABASE_URL = st.secrets.get("SUPABASE_URL", os.getenv("SUPABASE_URL", ""))
 SUPABASE_KEY = st.secrets.get("SUPABASE_KEY", os.getenv("SUPABASE_KEY", ""))
 
@@ -28,7 +30,140 @@ if SUPABASE_URL and SUPABASE_KEY:
     except Exception:
         supabase_client = None
 
-# Estilos visuales
+# Función local para generación de PDF sin fallos de caché
+class PDFQuote(FPDF):
+    def header(self):
+        self.set_fill_color(15, 23, 42) # Slate 900
+        self.rect(0, 0, 210, 38, 'F')
+        
+        # Buscar logo
+        base_dir = os.path.dirname(os.path.abspath(__file__))
+        possible_paths = [
+            os.path.join(base_dir, "logo.png"),
+            os.path.join(os.path.dirname(base_dir), "logo.png"),
+            "app/logo.png",
+            "logo.png"
+        ]
+        logo_path = next((p for p in possible_paths if os.path.exists(p)), None)
+
+        if logo_path:
+            # Tarjeta blanca para el logo
+            self.set_fill_color(255, 255, 255)
+            self.rect(10, 6, 48, 26, 'F')
+            self.image(logo_path, x=11, y=9, w=46)
+            
+            # Textos institucionales
+            self.set_xy(60, 7)
+            self.set_font("Helvetica", "B", 12)
+            self.set_text_color(255, 255, 255)
+            self.cell(140, 6, "PROPUESTA TECNICA - SISTEMA SOLAR SOLARTECH", ln=True, align="R")
+            
+            self.set_x(60)
+            self.set_font("Helvetica", "", 9)
+            self.set_text_color(56, 189, 248)
+            self.cell(140, 5, "Dimensionamiento Preliminar y Estimacion Economica", ln=True, align="R")
+            
+            self.set_x(60)
+            self.set_font("Helvetica", "", 8)
+            self.set_text_color(203, 213, 225)
+            self.cell(140, 5, "NIT: 901798729 | Cel / WhatsApp: 310 247 6744", ln=True, align="R")
+        else:
+            self.set_font("Helvetica", "B", 13)
+            self.set_text_color(255, 255, 255)
+            self.cell(0, 7, "PROPUESTA TECNICA - SISTEMA SOLAR SOLARTECH", ln=True, align="C")
+            self.set_font("Helvetica", "", 9)
+            self.set_text_color(56, 189, 248)
+            self.cell(0, 5, "Dimensionamiento Preliminar y Estimacion Economica", ln=True, align="C")
+            self.set_font("Helvetica", "", 8)
+            self.set_text_color(203, 213, 225)
+            self.cell(0, 5, "NIT: 901798729 | Cel / WhatsApp: 310 247 6744", ln=True, align="C")
+            
+        self.ln(16)
+
+    def footer(self):
+        self.set_y(-20)
+        self.set_font("Helvetica", "I", 8)
+        self.set_text_color(150, 150, 150)
+        self.cell(0, 10, "SOLARTECH - Soluciones en Tecnologia y Energias Alternativas. Documento preliminar.", align="C")
+
+def sanitize_pdf_text(text: str) -> str:
+    replacements = {
+        "•": "-", "á": "a", "é": "e", "í": "i", "ó": "o", "ú": "u",
+        "Á": "A", "É": "E", "Í": "I", "Ó": "O", "Ú": "U", "ñ": "n", "Ñ": "N",
+        "“": '"', "”": '"', "’": "'", "–": "-", "—": "-"
+    }
+    for k, v in replacements.items():
+        text = str(text).replace(k, v)
+    return text.encode('latin-1', 'replace').decode('latin-1')
+
+def make_pdf(client_data: dict, quote_data: dict) -> bytes:
+    pdf = PDFQuote()
+    pdf.add_page()
+    pdf.set_auto_page_break(auto=True, margin=15)
+
+    # 1. Cliente
+    pdf.set_font("Helvetica", "B", 11)
+    pdf.set_text_color(15, 23, 42)
+    pdf.cell(0, 7, sanitize_pdf_text("1. INFORMACION DEL CLIENTE Y UBICACION"), ln=True)
+    pdf.set_line_width(0.4)
+    pdf.set_draw_color(56, 189, 248)
+    pdf.line(10, pdf.get_y(), 200, pdf.get_y())
+    pdf.ln(3)
+
+    pdf.set_font("Helvetica", "", 10)
+    pdf.set_text_color(50, 50, 50)
+    pdf.cell(100, 6, sanitize_pdf_text(f"Cliente: {client_data.get('full_name', 'N/A')}"), ln=False)
+    pdf.cell(90, 6, f"Fecha: {datetime.now().strftime('%d/%m/%Y')}", ln=True)
+    pdf.cell(100, 6, sanitize_pdf_text(f"Telefono: {client_data.get('phone', 'N/A')}"), ln=False)
+    pdf.cell(90, 6, sanitize_pdf_text(f"Ciudad: {client_data.get('city', 'N/A')}"), ln=True)
+    if client_data.get('email'):
+        pdf.cell(100, 6, sanitize_pdf_text(f"Email: {client_data.get('email')}"), ln=True)
+    pdf.cell(100, 6, sanitize_pdf_text(f"Consumo promedio evaluado: {client_data.get('monthly_kwh', 0):.1f} kWh/mes"), ln=True)
+    pdf.ln(5)
+
+    # 2. Equipamiento
+    pdf.set_font("Helvetica", "B", 11)
+    pdf.set_text_color(15, 23, 42)
+    pdf.cell(0, 7, sanitize_pdf_text("2. DIMENSIONAMIENTO Y EQUIPAMIENTO RECOMENDADO"), ln=True)
+    pdf.line(10, pdf.get_y(), 200, pdf.get_y())
+    pdf.ln(3)
+
+    pdf.set_font("Helvetica", "", 10)
+    pdf.set_text_color(50, 50, 50)
+    pdf.cell(0, 6, sanitize_pdf_text(f"- Potencia Solar Total: {quote_data['recommended_kwp']} kWp"), ln=True)
+    pdf.cell(0, 6, sanitize_pdf_text(f"- Cantidad de Paneles: {quote_data['solar_panels_count']} paneles Tier-1 de 550W"), ln=True)
+    pdf.cell(0, 6, sanitize_pdf_text(f"- Gabinete Integrado: {quote_data['cabinet']['model_name']}"), ln=True)
+    pdf.cell(0, 6, sanitize_pdf_text(f"    * Inversor Integrado: {quote_data['cabinet']['inverter_power_kw']} kW"), ln=True)
+    pdf.cell(0, 6, sanitize_pdf_text(f"    * Bateria Litio LiFePO4: {quote_data['cabinet']['battery_capacity_kwh']} kWh"), ln=True)
+    pdf.cell(0, 6, sanitize_pdf_text(f"    * Dimensiones Gabinete: {quote_data['cabinet']['dimensions_cm']}"), ln=True)
+    pdf.cell(0, 6, sanitize_pdf_text(f"- Generacion Mensual Estimada: ~{quote_data['estimated_monthly_generation_kwh']} kWh/mes"), ln=True)
+    pdf.ln(5)
+
+    # 3. Costos
+    pdf.set_font("Helvetica", "B", 11)
+    pdf.set_text_color(15, 23, 42)
+    pdf.cell(0, 7, sanitize_pdf_text("3. ESTIMACION FINANCIERA Y RETORNO"), ln=True)
+    pdf.line(10, pdf.get_y(), 200, pdf.get_y())
+    pdf.ln(4)
+
+    pdf.set_fill_color(240, 249, 255)
+    pdf.rect(10, pdf.get_y(), 190, 24, 'F')
+    pdf.set_xy(14, pdf.get_y() + 2)
+    
+    pdf.set_font("Helvetica", "B", 11)
+    pdf.set_text_color(3, 105, 161)
+    pdf.cell(0, 6, sanitize_pdf_text(f"Rango de Inversion Llave en Mano: ${quote_data['total_cost_min_cop']:,.0f} - ${quote_data['total_cost_max_cop']:,.0f} COP"), ln=True)
+    pdf.set_x(14)
+    pdf.set_font("Helvetica", "", 10)
+    pdf.set_text_color(50, 50, 50)
+    pdf.cell(0, 6, sanitize_pdf_text(f"Ahorro mensual proyectado en factura: ~${quote_data['estimated_monthly_savings_cop']:,.0f} COP/mes"), ln=True)
+    pdf.set_x(14)
+    pdf.cell(0, 6, sanitize_pdf_text(f"Tiempo estimado de Retorno de Inversion (ROI): ~{quote_data['estimated_roi_years']} anos"), ln=True)
+
+    out = pdf.output(dest='S')
+    return out.encode('latin-1') if isinstance(out, str) else bytes(out)
+
+# Estilos CSS
 st.markdown("""
     <style>
         .stApp {
@@ -43,6 +178,15 @@ st.markdown("""
         div[role="radiogroup"] label div p {
             color: #ffffff !important;
             font-weight: 500 !important;
+        }
+        .logo-box {
+            background: #ffffff;
+            border-radius: 10px;
+            padding: 8px 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
         }
         .solution-card {
             background: rgba(255, 255, 255, 0.05);
@@ -75,20 +219,22 @@ st.markdown("""
     </style>
 """, unsafe_allow_html=True)
 
-# --- ENCABEZADO INSTITUCIONAL SOLARTECH ---
-header_col1, header_col2 = st.columns([1, 2], gap="medium")
+# --- HEADER SOLARTECH CON LOGO EN TARJETA BLANCA LIMPIA ---
+header_col1, header_col2 = st.columns([1, 3], gap="medium")
 
 with header_col1:
     logo_path = "app/logo.png" if os.path.exists("app/logo.png") else "logo.png"
     if os.path.exists(logo_path):
+        st.markdown('<div class="logo-box">', unsafe_allow_html=True)
         st.image(logo_path, use_container_width=True)
+        st.markdown('</div>', unsafe_allow_html=True)
     else:
         st.markdown("### ☀️ SOLAR&TECH")
 
 with header_col2:
     st.markdown("""
         <div style="display: flex; flex-direction: column; justify-content: center; height: 100%;">
-            <h2 style="margin: 0; color: #38bdf8 !important;">Cotizador Sistema SOLARTECH</h2>
+            <h2 style="margin: 0; color: #38bdf8 !important; font-size: 1.7rem;">Cotizador Sistema SOLARTECH</h2>
             <p style="margin: 2px 0; font-size: 0.95rem; color: #cbd5e1 !important;">
                 <b>SOLAR&TECH</b> · Soluciones en Tecnología y Energías Alternativas
             </p>
@@ -100,13 +246,17 @@ with header_col2:
 
 st.divider()
 
+# Manejo de estado del formulario
+if "calculated" not in st.session_state:
+    st.session_state.calculated = False
+
 col1, col2 = st.columns([1, 1], gap="large")
 
 with col1:
     st.subheader("1. Tus Datos de Contacto")
-    nombre = st.text_input("Nombre Completo *", placeholder="Ej. Juan Pérez")
-    telefono = st.text_input("Número de Teléfono / WhatsApp *", placeholder="Ej. 3001234567")
-    email = st.text_input("Correo Electrónico (Opcional)", placeholder="juan@ejemplo.com")
+    nombre = st.text_input("Nombre Completo *", placeholder="Ej. Juan Pérez", key="input_nombre")
+    telefono = st.text_input("Número de Teléfono / WhatsApp *", placeholder="Ej. 3001234567", key="input_tel")
+    email = st.text_input("Correo Electrónico (Opcional)", placeholder="juan@ejemplo.com", key="input_email")
 
     st.subheader("2. Datos de Consumo")
     input_mode = st.radio(
@@ -165,7 +315,7 @@ with col2:
                 )
                 data = calculate_solar_quote(req).model_dump()
 
-                # Guardar Lead en Supabase si está configurado
+                # Guardar Lead en Supabase
                 if supabase_client:
                     try:
                         lead_record = {
@@ -183,7 +333,7 @@ with col2:
                         }
                         supabase_client.table("solar_leads").insert(lead_record).execute()
                     except Exception as db_err:
-                        st.caption(f"(Nota técnica: lead no guardado en base de datos: {db_err})")
+                        st.caption(f"(Nota técnica: {db_err})")
 
                 st.subheader(f"📊 Propuesta para {nombre}")
                 
@@ -207,7 +357,7 @@ with col2:
 
                 st.divider()
 
-                # 1. Botón de Descarga de PDF
+                # Generación PDF
                 client_info = {
                     "full_name": nombre,
                     "phone": telefono,
@@ -215,7 +365,7 @@ with col2:
                     "city": ciudad,
                     "monthly_kwh": promedio_kwh
                 }
-                pdf_bytes = generate_quote_pdf(client_info, data)
+                pdf_bytes = make_pdf(client_info, data)
 
                 st.download_button(
                     label="📄 Descargar Propuesta en PDF",
@@ -225,10 +375,10 @@ with col2:
                     use_container_width=True
                 )
 
-                # 2. Botón WhatsApp
+                # WhatsApp
                 numero_whatsapp = "573102476744"
                 mensaje_wa = (
-                    f"¡Hola! Mi nombre es {nombre}. Acabo de cotizar un sistema solar:\n"
+                    f"¡Hola! Mi nombre es {nombre}. Acabo de cotizar un sistema solar con SOLARTECH:\n"
                     f"📍 Ciudad: {ciudad}\n"
                     f"⚡ Consumo: {promedio_kwh:.1f} kWh/mes\n"
                     f"📦 Gabinete: {data['cabinet']['model_name']} ({data['recommended_kwp']} kWp)\n"
