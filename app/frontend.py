@@ -221,23 +221,23 @@ st.markdown("""
     </style>
 """, unsafe_allow_html=True)
 
-# --- HEADER CON LOGO EN CAJA BLANCA LIMPIA ---
+# --- ENCABEZADO INSTITUCIONAL SOLARTECH ---
 header_col1, header_col2 = st.columns([1, 3], gap="medium")
 
 with header_col1:
     logo_path = "app/logo.png" if os.path.exists("app/logo.png") else "logo.png"
     if os.path.exists(logo_path):
-        st.markdown('<div class="logo-box">', unsafe_allow_html=True)
         st.image(logo_path, use_container_width=True)
-        st.markdown('</div>', unsafe_allow_html=True)
     else:
         st.markdown("### ☀️ SOLAR&TECH")
 
 with header_col2:
     st.markdown("""
-        <div style="display: flex; flex-direction: column; justify-content: center; height: 100%;">
-            <h2 style="margin: 0; color: #38bdf8 !important; font-size: 1.7rem;">Cotizador Sistema SOLARTECH</h2>
-            <p style="margin: 2px 0; font-size: 0.95rem; color: #cbd5e1 !important;">
+        <div style="display: flex; flex-direction: column; justify-content: center; height: 100%; padding-top: 5px;">
+            <h2 style="margin: 0; color: #38bdf8 !important; font-size: 1.7rem; font-weight: 700;">
+                Cotizador Sistema SOLARTECH
+            </h2>
+            <p style="margin: 3px 0; font-size: 0.95rem; color: #cbd5e1 !important;">
                 <b>SOLAR&TECH</b> · Soluciones en Tecnología y Energías Alternativas
             </p>
             <p style="margin: 0; font-size: 0.85rem; color: #94a3b8 !important;">
