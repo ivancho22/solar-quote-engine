@@ -1,23 +1,62 @@
 from fpdf import FPDF
 from datetime import datetime
+import os
 
 class PDFQuote(FPDF):
     def header(self):
-        self.set_fill_color(15, 23, 42)
-        self.rect(0, 0, 210, 30, 'F')
-        self.set_font("Helvetica", "B", 15)
-        self.set_text_color(255, 255, 255)
-        self.cell(0, 12, "PROPUESTA TECNICA - SISTEMA SOLAR ALL-IN-ONE", ln=True, align="C")
-        self.set_font("Helvetica", "", 10)
-        self.set_text_color(56, 189, 248)
-        self.cell(0, 4, "Dimensionamiento Preliminar y Estimacion Economica", ln=True, align="C")
-        self.ln(12)
+        # 1. Fondo oscuro elegante en el encabezado
+        self.set_fill_color(15, 23, 42) # Slate 900
+        self.rect(0, 0, 210, 36, 'F')
+        
+        # 2. Ruta del Logo (busca app/logo.png o logo.png)
+        current_dir = os.path.dirname(os.path.abspath(__file__))
+        logo_path = os.path.join(current_dir, "..", "logo.png")
+        
+        if not os.path.exists(logo_path):
+            logo_path = os.path.join(current_dir, "logo.png")
+
+        if os.path.exists(logo_path):
+            # Logo en la izquierda con fondo blanco para que resalte
+            self.set_fill_color(255, 255, 255)
+            self.rect(10, 5, 48, 26, 'F')
+            self.image(logo_path, x=11, y=8, w=46)
+            
+            # Textos institucionales alineados a la derecha
+            self.set_xy(60, 6)
+            self.set_font("Helvetica", "B", 12)
+            self.set_text_color(255, 255, 255)
+            self.cell(140, 6, "PROPUESTA TECNICA - SISTEMA SOLAR SOLARTECH", ln=True, align="R")
+            
+            self.set_x(60)
+            self.set_font("Helvetica", "", 9)
+            self.set_text_color(56, 189, 248) # Cyan
+            self.cell(140, 5, "Dimensionamiento Preliminar y Estimacion Economica", ln=True, align="R")
+            
+            self.set_x(60)
+            self.set_font("Helvetica", "", 8)
+            self.set_text_color(203, 213, 225)
+            self.cell(140, 5, "NIT: 901798729 | Cel / WhatsApp: 310 247 6744", ln=True, align="R")
+        else:
+            # Encabezado centrado si aún no encuentra la imagen
+            self.set_font("Helvetica", "B", 14)
+            self.set_text_color(255, 255, 255)
+            self.cell(0, 7, "PROPUESTA TECNICA - SISTEMA SOLAR SOLARTECH", ln=True, align="C")
+            
+            self.set_font("Helvetica", "", 9)
+            self.set_text_color(56, 189, 248)
+            self.cell(0, 5, "Dimensionamiento Preliminar y Estimacion Economica", ln=True, align="C")
+            
+            self.set_font("Helvetica", "", 8)
+            self.set_text_color(203, 213, 225)
+            self.cell(0, 5, "NIT: 901798729 | Cel / WhatsApp: 310 247 6744", ln=True, align="C")
+            
+        self.ln(14)
 
     def footer(self):
         self.set_y(-20)
         self.set_font("Helvetica", "I", 8)
         self.set_text_color(150, 150, 150)
-        self.cell(0, 10, "Documento de estimacion tecnica preliminar. Sujeto a visita tecnica en sitio.", align="C")
+        self.cell(0, 10, "SOLARTECH - Soluciones en Tecnologia y Energias Alternativas. Sujeto a visita tecnica en sitio.", align="C")
 
 def sanitize_text(text: str) -> str:
     """Limpia tildes y caracteres especiales incompatibles con la fuente estandar Helvetica."""
@@ -36,9 +75,9 @@ def generate_quote_pdf(client_data: dict, quote_data: dict) -> bytes:
     pdf.set_auto_page_break(auto=True, margin=15)
 
     # 1. Datos del Cliente
-    pdf.set_font("Helvetica", "B", 12)
+    pdf.set_font("Helvetica", "B", 11)
     pdf.set_text_color(15, 23, 42)
-    pdf.cell(0, 8, sanitize_text("1. INFORMACION DEL CLIENTE Y UBICACION"), ln=True)
+    pdf.cell(0, 7, sanitize_text("1. INFORMACION DEL CLIENTE Y UBICACION"), ln=True)
     pdf.set_line_width(0.4)
     pdf.set_draw_color(56, 189, 248)
     pdf.line(10, pdf.get_y(), 200, pdf.get_y())
@@ -53,12 +92,12 @@ def generate_quote_pdf(client_data: dict, quote_data: dict) -> bytes:
     if client_data.get('email'):
         pdf.cell(100, 6, sanitize_text(f"Email: {client_data.get('email')}"), ln=True)
     pdf.cell(100, 6, sanitize_text(f"Consumo promedio evaluado: {client_data.get('monthly_kwh', 0):.1f} kWh/mes"), ln=True)
-    pdf.ln(6)
+    pdf.ln(5)
 
     # 2. Resumen Técnico
-    pdf.set_font("Helvetica", "B", 12)
+    pdf.set_font("Helvetica", "B", 11)
     pdf.set_text_color(15, 23, 42)
-    pdf.cell(0, 8, sanitize_text("2. DIMENSIONAMIENTO Y EQUIPAMIENTO RECOMENDADO"), ln=True)
+    pdf.cell(0, 7, sanitize_text("2. DIMENSIONAMIENTO Y EQUIPAMIENTO RECOMENDADO"), ln=True)
     pdf.line(10, pdf.get_y(), 200, pdf.get_y())
     pdf.ln(3)
 
@@ -71,12 +110,12 @@ def generate_quote_pdf(client_data: dict, quote_data: dict) -> bytes:
     pdf.cell(0, 6, sanitize_text(f"    * Bateria Litio LiFePO4: {quote_data['cabinet']['battery_capacity_kwh']} kWh"), ln=True)
     pdf.cell(0, 6, sanitize_text(f"    * Dimensiones Gabinete: {quote_data['cabinet']['dimensions_cm']}"), ln=True)
     pdf.cell(0, 6, sanitize_text(f"- Generacion Mensual Estimada: ~{quote_data['estimated_monthly_generation_kwh']} kWh/mes"), ln=True)
-    pdf.ln(6)
+    pdf.ln(5)
 
     # 3. Estimación Económica
-    pdf.set_font("Helvetica", "B", 12)
+    pdf.set_font("Helvetica", "B", 11)
     pdf.set_text_color(15, 23, 42)
-    pdf.cell(0, 8, sanitize_text("3. ESTIMACION FINANCIERA Y RETORNO"), ln=True)
+    pdf.cell(0, 7, sanitize_text("3. ESTIMACION FINANCIERA Y RETORNO"), ln=True)
     pdf.line(10, pdf.get_y(), 200, pdf.get_y())
     pdf.ln(4)
 
@@ -94,7 +133,6 @@ def generate_quote_pdf(client_data: dict, quote_data: dict) -> bytes:
     pdf.set_x(14)
     pdf.cell(0, 6, sanitize_text(f"Tiempo estimado de Retorno de Inversion (ROI): ~{quote_data['estimated_roi_years']} anos"), ln=True)
 
-    # Obtener bytes compatible
     output_data = pdf.output(dest='S')
     if isinstance(output_data, str):
         return output_data.encode('latin-1')
