@@ -22,9 +22,31 @@ if SUPABASE_URL and SUPABASE_KEY:
         supabase_client = None
 
 st.set_page_config(
-    page_title="Cotizador Sistema SOLARTECH",
-    page_icon="☀️",
-    layout="wide"
+    # --- ENCABEZADO INSTITUCIONAL SOLARTECH ---
+        header_col1, header_col2 = st.columns([1, 2], gap="medium")
+
+        with header_col1:
+            # Buscar el logo en app/logo.png o logo.png
+            logo_path = "app/logo.png" if os.path.exists("app/logo.png") else "logo.png"
+            if os.path.exists(logo_path):
+                st.image(logo_path, use_container_width=True)
+            else:
+                st.markdown("### ☀️ SOLAR&TECH")
+
+        with header_col2:
+            st.markdown("""
+                <div style="display: flex; flex-direction: column; justify-content: center; height: 100%;">
+                    <h2 style="margin: 0; color: #38bdf8 !important;">Cotizador Solar All-in-One</h2>
+                    <p style="margin: 2px 0; font-size: 0.95rem; color: #cbd5e1 !important;">
+                        <b>SOLAR&TECH</b> · Soluciones en Tecnología y Energías Alternativas
+                    </p>
+                    <p style="margin: 0; font-size: 0.85rem; color: #94a3b8 !important;">
+                        📄 <b>NIT:</b> 901798729 &nbsp;|&nbsp; 📲 <b>WhatsApp:</b> +57 310 247 6744
+                    </p>
+                </div>
+            """, unsafe_allow_html=True)
+
+        st.divider()
 )
 
 st.markdown("""
