@@ -33,10 +33,11 @@ if SUPABASE_URL and SUPABASE_KEY:
 # Generador de PDF integrado
 class PDFQuote(FPDF):
     def header(self):
-        self.set_fill_color(15, 23, 42) # Azul oscuro
+        # 1. Fondo azul oscuro continuo
+        self.set_fill_color(15, 23, 42)
         self.rect(0, 0, 210, 38, 'F')
         
-        # Buscar logo
+        # 2. Rutas del logo
         base_dir = os.path.dirname(os.path.abspath(__file__))
         possible_paths = [
             os.path.join(base_dir, "logo.png"),
@@ -47,27 +48,27 @@ class PDFQuote(FPDF):
         logo_path = next((p for p in possible_paths if os.path.exists(p)), None)
 
         if logo_path:
-            self.set_fill_color(255, 255, 255)
-            self.rect(10, 6, 48, 26, 'F')
+            # Estampar directamente el logo PNG transparente
             try:
-                self.image(logo_path, x=11, y=9, w=46)
+                self.image(logo_path, x=10, y=7, w=46)
             except Exception:
                 pass
             
-            self.set_xy(60, 7)
+            # Textos institucionales
+            self.set_xy(58, 7)
             self.set_font("Helvetica", "B", 12)
             self.set_text_color(255, 255, 255)
-            self.cell(140, 6, "PROPUESTA TECNICA - SISTEMA SOLAR SOLARTECH", ln=True, align="R")
+            self.cell(142, 6, "PROPUESTA TECNICA - SISTEMA SOLAR SOLARTECH", ln=True, align="R")
             
-            self.set_x(60)
+            self.set_x(58)
             self.set_font("Helvetica", "", 9)
             self.set_text_color(56, 189, 248)
-            self.cell(140, 5, "Dimensionamiento Preliminar y Estimacion Economica", ln=True, align="R")
+            self.cell(142, 5, "Dimensionamiento Preliminar y Estimacion Economica", ln=True, align="R")
             
-            self.set_x(60)
+            self.set_x(58)
             self.set_font("Helvetica", "", 8)
             self.set_text_color(203, 213, 225)
-            self.cell(140, 5, "NIT: 901798729 | Cel / WhatsApp: 310 247 6744", ln=True, align="R")
+            self.cell(142, 5, "NIT: 901798729 | Cel / WhatsApp: 310 247 6744", ln=True, align="R")
         else:
             self.set_font("Helvetica", "B", 13)
             self.set_text_color(255, 255, 255)
@@ -247,6 +248,24 @@ with header_col2:
     """, unsafe_allow_html=True)
 
 st.divider()
+
+# Función para reiniciar formulario
+def reset_form():
+    st.session_state["f_nombre"] = ""
+    st.session_state["f_tel"] = ""
+    st.session_state["f_email"] = ""
+    st.session_state["f_mes1"] = 350.0
+    st.session_state["f_mes2"] = 380.0
+    st.session_state["f_mes3"] = 360.0
+    st.session_state["f_factura"] = 320000.0
+
+# Inicialización de keys
+if "f_nombre" not in st.session_state:
+    st.session_state["f_nombre"] = ""
+if "f_tel" not in st.session_state:
+    st.session_state["f_tel"] = ""
+if "f_email" not in st.session_state:
+    st.session_state["f_email"] = ""
 
 col1, col2 = st.columns([1, 1], gap="large")
 
