@@ -9,6 +9,13 @@ from app.core.calculator import calculate_solar_quote
 from app.core.pdf_generator import generate_quote_pdf
 from app.schemas.quote import QuoteRequest
 
+# Configuración inicial de la página
+st.set_page_config(
+    page_title="Cotizador Solar All-in-One",
+    page_icon="☀️",
+    layout="wide"
+)
+
 # Configuración de Supabase (Usa st.secrets en Streamlit Cloud o variables de entorno)
 SUPABASE_URL = st.secrets.get("SUPABASE_URL", os.getenv("SUPABASE_URL", ""))
 SUPABASE_KEY = st.secrets.get("SUPABASE_KEY", os.getenv("SUPABASE_KEY", ""))
@@ -21,34 +28,7 @@ if SUPABASE_URL and SUPABASE_KEY:
     except Exception:
         supabase_client = None
 
-st.set_page_config(
-    # --- ENCABEZADO INSTITUCIONAL SOLARTECH ---
-        header_col1, header_col2 = st.columns([1, 2], gap="medium")
-
-        with header_col1:
-            # Buscar el logo en app/logo.png o logo.png
-            logo_path = "app/logo.png" if os.path.exists("app/logo.png") else "logo.png"
-            if os.path.exists(logo_path):
-                st.image(logo_path, use_container_width=True)
-            else:
-                st.markdown("### ☀️ SOLAR&TECH")
-
-        with header_col2:
-            st.markdown("""
-                <div style="display: flex; flex-direction: column; justify-content: center; height: 100%;">
-                    <h2 style="margin: 0; color: #38bdf8 !important;">Cotizador Solar All-in-One</h2>
-                    <p style="margin: 2px 0; font-size: 0.95rem; color: #cbd5e1 !important;">
-                        <b>SOLAR&TECH</b> · Soluciones en Tecnología y Energías Alternativas
-                    </p>
-                    <p style="margin: 0; font-size: 0.85rem; color: #94a3b8 !important;">
-                        📄 <b>NIT:</b> 901798729 &nbsp;|&nbsp; 📲 <b>WhatsApp:</b> +57 310 247 6744
-                    </p>
-                </div>
-            """, unsafe_allow_html=True)
-
-        st.divider()
-)
-
+# Estilos visuales
 st.markdown("""
     <style>
         .stApp {
@@ -95,8 +75,30 @@ st.markdown("""
     </style>
 """, unsafe_allow_html=True)
 
-st.title("☀️ Cotizador Sistema SOLARTECH")
-st.caption("Calcula el dimensionamiento y costo de tu sistema solar compacto en gabinete todo en uno.")
+# --- ENCABEZADO INSTITUCIONAL SOLARTECH ---
+header_col1, header_col2 = st.columns([1, 2], gap="medium")
+
+with header_col1:
+    logo_path = "app/logo.png" if os.path.exists("app/logo.png") else "logo.png"
+    if os.path.exists(logo_path):
+        st.image(logo_path, use_container_width=True)
+    else:
+        st.markdown("### ☀️ SOLAR&TECH")
+
+with header_col2:
+    st.markdown("""
+        <div style="display: flex; flex-direction: column; justify-content: center; height: 100%;">
+            <h2 style="margin: 0; color: #38bdf8 !important;">Cotizador Sistema SOLARTECH</h2>
+            <p style="margin: 2px 0; font-size: 0.95rem; color: #cbd5e1 !important;">
+                <b>SOLAR&TECH</b> · Soluciones en Tecnología y Energías Alternativas
+            </p>
+            <p style="margin: 0; font-size: 0.85rem; color: #94a3b8 !important;">
+                📄 <b>NIT:</b> 901798729 &nbsp;|&nbsp; 📲 <b>WhatsApp:</b> +57 310 247 6744
+            </p>
+        </div>
+    """, unsafe_allow_html=True)
+
+st.divider()
 
 col1, col2 = st.columns([1, 1], gap="large")
 
@@ -224,7 +226,7 @@ with col2:
                 )
 
                 # 2. Botón WhatsApp
-                numero_whatsapp = "573001234567" # Reemplaza por tu número
+                numero_whatsapp = "573102476744"
                 mensaje_wa = (
                     f"¡Hola! Mi nombre es {nombre}. Acabo de cotizar un sistema solar:\n"
                     f"📍 Ciudad: {ciudad}\n"
