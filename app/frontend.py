@@ -30,10 +30,10 @@ if SUPABASE_URL and SUPABASE_KEY:
     except Exception:
         supabase_client = None
 
-# Función local para generación de PDF sin fallos de caché
+# Generador de PDF integrado
 class PDFQuote(FPDF):
     def header(self):
-        self.set_fill_color(15, 23, 42) # Slate 900
+        self.set_fill_color(15, 23, 42) # Azul oscuro
         self.rect(0, 0, 210, 38, 'F')
         
         # Buscar logo
@@ -47,12 +47,13 @@ class PDFQuote(FPDF):
         logo_path = next((p for p in possible_paths if os.path.exists(p)), None)
 
         if logo_path:
-            # Tarjeta blanca para el logo
             self.set_fill_color(255, 255, 255)
             self.rect(10, 6, 48, 26, 'F')
-            self.image(logo_path, x=11, y=9, w=46)
+            try:
+                self.image(logo_path, x=11, y=9, w=46)
+            except Exception:
+                pass
             
-            # Textos institucionales
             self.set_xy(60, 7)
             self.set_font("Helvetica", "B", 12)
             self.set_text_color(255, 255, 255)
@@ -71,9 +72,11 @@ class PDFQuote(FPDF):
             self.set_font("Helvetica", "B", 13)
             self.set_text_color(255, 255, 255)
             self.cell(0, 7, "PROPUESTA TECNICA - SISTEMA SOLAR SOLARTECH", ln=True, align="C")
+            
             self.set_font("Helvetica", "", 9)
             self.set_text_color(56, 189, 248)
             self.cell(0, 5, "Dimensionamiento Preliminar y Estimacion Economica", ln=True, align="C")
+            
             self.set_font("Helvetica", "", 8)
             self.set_text_color(203, 213, 225)
             self.cell(0, 5, "NIT: 901798729 | Cel / WhatsApp: 310 247 6744", ln=True, align="C")
@@ -182,11 +185,10 @@ st.markdown("""
         .logo-box {
             background: #ffffff;
             border-radius: 10px;
-            padding: 8px 12px;
+            padding: 6px 12px;
             display: flex;
             align-items: center;
             justify-content: center;
-            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
         }
         .solution-card {
             background: rgba(255, 255, 255, 0.05);
@@ -219,7 +221,7 @@ st.markdown("""
     </style>
 """, unsafe_allow_html=True)
 
-# --- HEADER SOLARTECH CON LOGO EN TARJETA BLANCA LIMPIA ---
+# --- HEADER CON LOGO EN CAJA BLANCA LIMPIA ---
 header_col1, header_col2 = st.columns([1, 3], gap="medium")
 
 with header_col1:
@@ -246,17 +248,13 @@ with header_col2:
 
 st.divider()
 
-# Manejo de estado del formulario
-if "calculated" not in st.session_state:
-    st.session_state.calculated = False
-
 col1, col2 = st.columns([1, 1], gap="large")
 
 with col1:
     st.subheader("1. Tus Datos de Contacto")
-    nombre = st.text_input("Nombre Completo *", placeholder="Ej. Juan Pérez", key="input_nombre")
-    telefono = st.text_input("Número de Teléfono / WhatsApp *", placeholder="Ej. 3001234567", key="input_tel")
-    email = st.text_input("Correo Electrónico (Opcional)", placeholder="juan@ejemplo.com", key="input_email")
+    nombre = st.text_input("Nombre Completo *", placeholder="Ej. Juan Pérez", key="nombre_input")
+    telefono = st.text_input("Número de Teléfono / WhatsApp *", placeholder="Ej. 3001234567", key="tel_input")
+    email = st.text_input("Correo Electrónico (Opcional)", placeholder="juan@ejemplo.com", key="email_input")
 
     st.subheader("2. Datos de Consumo")
     input_mode = st.radio(
