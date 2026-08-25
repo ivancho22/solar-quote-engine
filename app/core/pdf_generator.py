@@ -4,24 +4,33 @@ import os
 
 class PDFQuote(FPDF):
     def header(self):
-        # 1. Fondo oscuro elegante en el encabezado
+        # 1. Fondo oscuro del encabezado
         self.set_fill_color(15, 23, 42) # Slate 900
         self.rect(0, 0, 210, 36, 'F')
         
-        # 2. Ruta del Logo (busca app/logo.png o logo.png)
-        current_dir = os.path.dirname(os.path.abspath(__file__))
-        logo_path = os.path.join(current_dir, "..", "logo.png")
+        # 2. Buscar imagen del logo en posibles rutas
+        possible_paths = [
+            os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "logo.png"),
+            os.path.join(os.path.dirname(os.path.abspath(__file__)), "logo.png"),
+            "app/logo.png",
+            "logo.png"
+        ]
         
-        if not os.path.exists(logo_path):
-            logo_path = os.path.join(current_dir, "logo.png")
+        logo_found = False
+        for path in possible_paths:
+            if os.path.exists(path):
+                try:
+                    # Caja blanca para que resalte el logo
+                    self.set_fill_color(255, 255, 255)
+                    self.rect(10, 5, 48, 26, 'F')
+                    self.image(path, x=11, y=8, w=46)
+                    logo_found = True
+                    break
+                except Exception:
+                    pass
 
-        if os.path.exists(logo_path):
-            # Logo en la izquierda con fondo blanco para que resalte
-            self.set_fill_color(255, 255, 255)
-            self.rect(10, 5, 48, 26, 'F')
-            self.image(logo_path, x=11, y=8, w=46)
-            
-            # Textos institucionales alineados a la derecha
+        if logo_found:
+            # Textos a la derecha del logo
             self.set_xy(60, 6)
             self.set_font("Helvetica", "B", 12)
             self.set_text_color(255, 255, 255)
@@ -37,8 +46,8 @@ class PDFQuote(FPDF):
             self.set_text_color(203, 213, 225)
             self.cell(140, 5, "NIT: 901798729 | Cel / WhatsApp: 310 247 6744", ln=True, align="R")
         else:
-            # Encabezado centrado si aún no encuentra la imagen
-            self.set_font("Helvetica", "B", 14)
+            # Si no encuentra el archivo de imagen, muestra el branding completo centrado
+            self.set_font("Helvetica", "B", 13)
             self.set_text_color(255, 255, 255)
             self.cell(0, 7, "PROPUESTA TECNICA - SISTEMA SOLAR SOLARTECH", ln=True, align="C")
             
@@ -56,10 +65,9 @@ class PDFQuote(FPDF):
         self.set_y(-20)
         self.set_font("Helvetica", "I", 8)
         self.set_text_color(150, 150, 150)
-        self.cell(0, 10, "SOLARTECH - Soluciones en Tecnologia y Energias Alternativas. Sujeto a visita tecnica en sitio.", align="C")
+        self.cell(0, 10, "SOLARTECH - Soluciones en Tecnologia y Energias Alternativas. Documento preliminar.", align="C")
 
 def sanitize_text(text: str) -> str:
-    """Limpia tildes y caracteres especiales incompatibles con la fuente estandar Helvetica."""
     replacements = {
         "•": "-", "á": "a", "é": "e", "í": "i", "ó": "o", "ú": "u",
         "Á": "A", "É": "E", "Í": "I", "Ó": "O", "Ú": "U", "ñ": "n", "Ñ": "N",
