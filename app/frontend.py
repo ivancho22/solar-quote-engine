@@ -282,16 +282,16 @@ with col1:
         horizontal=True
     )
     
-    tarifa_kwh = st.number_input("Costo aproximado por kWh ($ COP)", min_value=300.0, max_value=2000.0, value=850.0, step=10.0)
+    tarifa_kwh = st.number_input("Costo por kWh en tu factura por la electrificadora ($ COP)", min_value=300.0, max_value=2000.0, value=850.0, step=10.0)
 
-    if input_mode == "Promedio últimos 3 consumos (kWh)":
+    if input_mode == "Promedio últimos 3 consumos de tu factura (kWh)":
         c1, c2, c3 = st.columns(3)
         with c1:
-            mes1 = st.number_input("Mes 1 (kWh)", min_value=0.0, value=350.0)
+            mes1 = st.number_input("FacturaMes 1 (kWh)", min_value=0.0, value=350.0)
         with c2:
-            mes2 = st.number_input("Mes 2 (kWh)", min_value=0.0, value=380.0)
+            mes2 = st.number_input("Factura Mes 2 (kWh)", min_value=0.0, value=380.0)
         with c3:
-            mes3 = st.number_input("Mes 3 (kWh)", min_value=0.0, value=360.0)
+            mes3 = st.number_input("Factura Mes 3 (kWh)", min_value=0.0, value=360.0)
         promedio_kwh = (mes1 + mes2 + mes3) / 3.0
     else:
         valor_factura = st.number_input("Valor promedio factura ($ COP)", min_value=50000.0, value=320000.0, step=10000.0)
