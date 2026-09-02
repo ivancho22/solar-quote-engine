@@ -3,6 +3,7 @@ import sys
 import os
 import urllib.parse
 from datetime import datetime
+import requests
 # Asegurar path
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 import streamlit as st
@@ -316,9 +317,16 @@ with col2:
                             "min_cost": data['total_cost_min_cop'],
                             "max_cost": data['total_cost_max_cop']
                         }
+                        
+                        # 1. Guarda en Supabase
                         supabase_client.table("solar_leads").insert(lead_record).execute()
+                        
+                        # 2. Notifica al Webhook de Make al instante
+                        webhook_url = "https://hook.eu1.make.com/bkfmuow1cy97yjad97giswd8rq7g7olx"
+                        requests.post(webhook_url, json=lead_record)
+
                     except Exception:
-                        pass # Opcional: silenciar si hay un fallo menor para no interrumpir al usuario
+                        pass
                 st.success("✅ Cotización generada exitosamente. Desplázate hacia abajo para ver los detalles y descargar la propuesta en PDF.")
                 st.divider()                
                 m1, m2, m3 = st.columns(3)
