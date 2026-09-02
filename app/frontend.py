@@ -317,10 +317,10 @@ with col2:
                             "max_cost": data['total_cost_max_cop']
                         }
                         supabase_client.table("solar_leads").insert(lead_record).execute()
-                    except Exception as db_err:
-                        st.caption(f"(Nota técnica: {db_err})")
-                st.subheader(f"📊 Propuesta para {nombre}")
-                
+                    except Exception:
+                        pass # Opcional: silenciar si hay un fallo menor para no interrumpir al usuario
+                st.success("✅ Cotización generada exitosamente. Desplázate hacia abajo para ver los detalles y descargar la propuesta en PDF.")
+                st.divider()                
                 m1, m2, m3 = st.columns(3)
                 m1.metric("Potencia Solar", f"{data['recommended_kwp']} kWp")
                 m2.metric("Paneles (550W)", f"{data['solar_panels_count']} Unidades")
